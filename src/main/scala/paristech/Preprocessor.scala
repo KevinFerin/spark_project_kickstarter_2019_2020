@@ -1,7 +1,7 @@
 package paristech
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 object Preprocessor {
 
@@ -43,5 +43,39 @@ object Preprocessor {
     println("\n")
     println("Hello World ! from Preprocessor")
     println("\n")
+
+    val df : DataFrame = spark.read
+      .option("header",true)
+      .option("inferSchema","true")
+      .csv("data/train_clean.csv")
+
+    print(s"Nombre de ligne :  ${df.count}")
+    println(s"Nombre de colonnes : ${df.columns.length}")
+    df.show()
+    df.printSchema()
+    val dfCasted : DataFrame = df
+      .withColumn("goal", df("goal").cast("Int"))
+      .withColumn("deadline" , df("deadline").cast("Int"))
+      .withColumn("state_changed_at", df("state_changed_at").cast("Int"))
+      .withColumn("created_at", df("created_at").cast("Int"))
+      .withColumn("launched_at", df("launched_at").cast("Int"))
+      .withColumn("backers_count", df("backers_count").cast("Int"))
+      .withColumn("final_status", df("final_status").cast("Int"))
+
+    dfCasted.printSchema()
+
+    dfCasted
+      .select("goal", "backers_count", "final_status")
+      .describe()
+      .show
+
+    dfCasted.groupBy("disable_communication").count.orderBy($"count".desc).show(100)
+    dfCasted.groupBy("country").count.orderBy(dfCasted("count").desc).show(100)
+    dfCasted.groupBy("currency").count.orderBy(dfCasted("count").desc).show(100)
+    dfCasted.select("deadline").dropDuplicates.show()
+    dfCasted.groupBy("state_changed_at").count.orderBy(dfCasted("count").desc).show(100)
+    dfCasted.groupBy("backers_count").count.orderBy(dfCasted("count").desc).show(100)
+    dfCasted.select("goal", "final_status").show(30)
+    dfCasted.groupBy("country", "currency").count.orderBy(dfCasted("count").desc).show(50)
   }
 }
