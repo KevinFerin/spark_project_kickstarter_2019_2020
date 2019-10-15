@@ -28,6 +28,9 @@ object Preprocessor {
       .appName("TP Spark : Preprocessor")
       .getOrCreate()
 
+    import spark.implicits._
+
+
     /*******************************************************************************
       *
       *       TP 2
@@ -70,13 +73,13 @@ object Preprocessor {
       .show
 
     dfCasted.groupBy("disable_communication").count.orderBy($"count".desc).show(100)
-    dfCasted.groupBy("country").count.orderBy(dfCasted("count").desc).show(100)
-    dfCasted.groupBy("currency").count.orderBy(dfCasted("count").desc).show(100)
+    dfCasted.groupBy("country").count.orderBy($"count".desc).show(100)
+    dfCasted.groupBy("currency").count.orderBy($"count".desc).show(100)
     dfCasted.select("deadline").dropDuplicates.show()
-    dfCasted.groupBy("state_changed_at").count.orderBy(dfCasted("count").desc).show(100)
-    dfCasted.groupBy("backers_count").count.orderBy(dfCasted("count").desc).show(100)
+    dfCasted.groupBy("state_changed_at").count.orderBy($"count".desc).show(100)
+    dfCasted.groupBy("backers_count").count.orderBy($"count".desc).show(100)
     dfCasted.select("goal", "final_status").show(30)
-    dfCasted.groupBy("country", "currency").count.orderBy(dfCasted("count").desc).show(50)
+    dfCasted.groupBy("country", "currency").count.orderBy($"count".desc).show(50)
 
     val df2: DataFrame = dfCasted.drop("disable_communication")
   }
