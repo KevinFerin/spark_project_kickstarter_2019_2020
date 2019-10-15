@@ -77,5 +77,7 @@ object Preprocessor {
     dfCasted.groupBy("backers_count").count.orderBy(dfCasted("count").desc).show(100)
     dfCasted.select("goal", "final_status").show(30)
     dfCasted.groupBy("country", "currency").count.orderBy(dfCasted("count").desc).show(50)
+
+    val df2: DataFrame = dfCasted.drop("disable_communication")
   }
 }
