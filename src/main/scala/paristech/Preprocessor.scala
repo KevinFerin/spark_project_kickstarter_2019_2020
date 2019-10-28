@@ -21,13 +21,6 @@ object Preprocessor {
       currency
   }
 
-  def cleanFinalStatus (final_status : Integer) : Integer = {
-    if (final_status != 0 && final_status !=1)
-      null
-    else
-      final_status
-  }
-
   def main(args: Array[String]): Unit = {
 
     // Des réglages optionnels du job spark. Les réglages par défaut fonctionnent très bien pour ce TP.
@@ -126,7 +119,7 @@ object Preprocessor {
     // Ici nous allons séléctionner que les campagens ayant un final-status à 0 ou 1.
     // On pourrait toutefois tester en mettant toutes les autres valeurs à 0
     // en considérant que les campagnes qui ne sont pas un Success sont un Fail.
-    val cleanFinalStatusUdf = udf(cleanFinalStatus _)
+    //val cleanFinalStatusUdf = udf(cleanFinalStatus _)
     val dfFinalStatus : DataFrame = dfCountry
       .withColumn("final_status", when($"final_status"===0 || $"final_status"===1,$"final_status").otherwise(null))
         .filter($"final_status".isNotNull)
@@ -154,24 +147,24 @@ object Preprocessor {
     //val cleanNullStringUdf = udf(cleanNullString _)
 
     val dfCleanNull : DataFrame = dfText
-      .withColumn("days_campaign",when($"days_campaign"===null,-1).otherwise($"days_campaign"))
-      .withColumn("goal",when($"goal"===null, -1).otherwise($"goal"))
-      .withColumn("hours_prepa",when($"hours_prepa"===null,-1).otherwise(($"hours_prepa")))
+      .withColumn("days_campaign",when($"days_campaign".isNull,-1).otherwise($"days_campaign"))
+      .withColumn("goal",when($"goal".isNull, -1).otherwise($"goal"))
+      .withColumn("hours_prepa",when($"hours_prepa".isNull,-1).otherwise(($"hours_prepa")))
       .withColumn("country2",when($"country2"==="True","unknown").otherwise($"country2"))
-      .withColumn("currency2",when($"currency2"==="null" , "unknown").otherwise($"currency2"))
+      .withColumn("currency2",when($"currency2".isNull , "unknown").otherwise($"currency2"))
 
     //dfCleanNull.show()
     dfCleanNull.groupBy("country2").count().orderBy($"count").show()
     dfCleanNull.groupBy("currency2").count().orderBy($"count").show()
     //dfCleanNull.groupBy("days_campaign").count().orderBy($"count").show()
     //Environ 22000 ligne avec des hours_prepa negatifs et que 37 en dessous de -10 370 en dessous de -5 => solution de les mettre tous à 0
-    print("ceci est un test pre clean : ",dfCleanNull.filter($"hours_prepa" === -1).count())
+    //print("ceci est un test pre clean : ",dfCleanNull.filter($"hours_prepa" === -1).count())
     val dfCleaned : DataFrame = dfCleanNull
-        .withColumn("hours_prepa", when($"hours_prepa" < 0, 0).otherwise($"hours_prepa"))
-    print("ceci est un test post clean ",dfCleaned.filter($"hours_prepa" < -5).count())
+        .withColumn("hours_prepa", when($"hours_prepa" < 0, -1).otherwise($"hours_prepa"))
+    //print("ceci est un test post clean ",dfCleaned.filter($"hours_prepa" < -5).count())
     print(dfCleanNull.filter($"days_campaign" <= 0).count())
     //peux pas sauvegarder, faut enlever les utf et utiliser les fonctions spark : DONE
-    //dfCleanNull.write.parquet("/TP2parquet")
+    //////dfCleanNull.write.parquet("~/Documents/Telecom/Intro au framework SPARK/spark_project_kickstarter_2019_2020/TP2parquet")
   }
 
 }

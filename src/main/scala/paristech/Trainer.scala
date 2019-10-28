@@ -1,8 +1,11 @@
 package paristech
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.SparkSession
-
+import org.apache.spark.sql.{SparkSession, DataFrame}
+import org.apache.spark.ml.feature.{IDF, Tokenizer, RegexTokenizer, StopWordsRemover, CountVectorizer, StringIndexer, OneHotEncoder, VectorAssembler,CountVectorizerModel}
+import org.apache.spark.ml.{Pipeline, PipelineModel}
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 
 object Trainer {
 
@@ -41,6 +44,85 @@ object Trainer {
       ********************************************************************************/
 
     println("hello world ! from Trainer")
+
+    val df : DataFrame = spark.read
+      .parquet("data/prepared_trainingset")
+
+    val tokenizer = new RegexTokenizer()
+      .setPattern("\\W+")
+      .setGaps(true)
+      .setInputCol("text")
+      .setOutputCol("tokens")
+
+    val stopWordsRemover = new StopWordsRemover()
+      .setInputCol("tokens")
+      .setOutputCol("tokensWOstopwords")
+
+    val cvModel: CountVectorizerModel = new CountVectorizer()
+      .setInputCol("tokensWOstopwords")
+      .setOutputCol("countedWord")
+      .setMinDF(2) //a word has to appear 2 times to be in the vocabulary
+      .fit(stopWordsRemover.transform(tokenizer.transform(df)))
+
+    val idf = new IDF()
+      .setInputCol("countedWord")
+      .setOutputCol("tfidf")
+
+    val indexerCountry = new StringIndexer()
+      .setInputCol("country2")
+      .setOutputCol("country_indexed")
+
+    val indexerCurrency = new StringIndexer()
+      .setInputCol("currency2")
+      .setOutputCol("currency_indexed")
+
+    val onehotencoderCountry = new OneHotEncoder()
+      .setInputCol("country_indexed")
+      .setOutputCol("country_onehot")
+
+    val onehotencoderCurrency = new OneHotEncoder()
+      .setInputCol("currency_indexed")
+      .setOutputCol("currency_onehot")
+
+    val assembler = new VectorAssembler()
+      .setInputCols(Array("tfidf", "days_campaign", "hours_prepa", "goal", "country_onehot", "currency_onehot"))
+      .setOutputCol("features")
+
+    val lr = new LogisticRegression()
+      .setElasticNetParam(0.0)
+      .setFitIntercept(true)
+      .setFeaturesCol("features")
+      .setLabelCol("final_status")
+      .setStandardization(true)
+      .setPredictionCol("predictions")
+      .setRawPredictionCol("raw_predictions")
+      .setThresholds(Array(0.7, 0.3))
+      .setTol(1.0e-6)
+      .setMaxIter(20)
+
+    val splits = df.randomSplit(Array(0.9, 0.1))
+    val training = splits(0).cache()
+    val test = splits(1)
+
+    val pipeline = new Pipeline()
+      .setStages(Array(tokenizer, stopWordsRemover,cvModel,idf, indexerCountry,indexerCurrency,
+        onehotencoderCountry, onehotencoderCurrency, assembler, lr))
+
+    val model = pipeline.fit(training)
+
+    model.write.overwrite().save("spark-logistic-regression-model")
+
+    val sameModel = PipelineModel.load("spark-logistic-regression-model")
+
+    val predic = sameModel.transform(test)
+    val evaluator = new MulticlassClassificationEvaluator()
+      .setLabelCol("final_status")
+      .setPredictionCol("predictions")
+      .setMetricName("f1")
+    val result = evaluator.evaluate(predic)
+    println("\n")
+    println("Le f1 score de ce model sans tuning est : " + result)
+    println("\n")
 
   }
 }
