@@ -6,7 +6,7 @@ import org.apache.spark.ml.feature.{IDF, Tokenizer, RegexTokenizer, StopWordsRem
 import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
-
+import org.apache.spark.ml.tuning.{ParamGridBuilder, TrainValidationSplit,TrainValidationSplitModel, CrossValidator}
 object Trainer {
 
   def main(args: Array[String]): Unit = {
@@ -120,9 +120,54 @@ object Trainer {
       .setPredictionCol("predictions")
       .setMetricName("f1")
     val result = evaluator.evaluate(predic)
+
     println("\n")
     println("Le f1 score de ce model sans tuning est : " + result)
     println("\n")
 
+
+    val paramGrid = new ParamGridBuilder()
+      .addGrid(cvModel.minDF, Array(55.0,75.0,95.0))
+      .addGrid(lr.regParam, Array(10e-8, 10e-6, 10e-4, 10e-2))
+      .build()
+
+    val lrtv = new TrainValidationSplit()
+      .setEstimator(pipeline)
+      .setEstimatorParamMaps(paramGrid)
+      .setEvaluator(evaluator)
+
+    val modelGridTV = lrtv.fit(training)
+
+    modelGridTV.write.overwrite().save("spark-logistic-regression-model-gridSearchedTV")
+
+    val sameModelGridTV = TrainValidationSplitModel.load("spark-logistic-regression-model-gridSearchedTV")
+
+    val predicGridTV = sameModelGridTV.transform(test)
+
+    val resultGridTV = evaluator.evaluate(predicGridTV)
+
+    println("\n")
+    println("Le f1 score de ce model après gridSearch avec train validation split est : " + resultGridTV)
+    println("\n")
+
+    val lrcv = new CrossValidator()
+      .setEstimator(pipeline)
+      .setEstimatorParamMaps(paramGrid)
+      .setEvaluator(evaluator)
+      .setNumFolds(5)
+
+    val modelGridCV = lrcv.fit(training)
+
+    modelGridCV.write.overwrite().save("spark-logistic-regression-model-gridSearchedCV")
+
+    val sameModelGridCV = TrainValidationSplitModel.load("spark-logistic-regression-model-gridSearchedCV")
+
+    val predicGridCV = sameModelGridCV.transform(test)
+
+    val resultGridCV = evaluator.evaluate(predicGridCV)
+
+    println("\n")
+    println("Le f1 score de ce model après gridSearch avec cross validator est : " + resultGridCV)
+    println("\n")
   }
 }

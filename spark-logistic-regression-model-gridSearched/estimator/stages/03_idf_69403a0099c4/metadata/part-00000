@@ -1,0 +1,1 @@
+{"class":"org.apache.spark.ml.feature.IDF","timestamp":1572270148269,"sparkVersion":"2.4.4","uid":"idf_69403a0099c4","paramMap":{"outputCol":"tfidf","inputCol":"countedWord"},"defaultParamMap":{"outputCol":"idf_69403a0099c4__output","minDocFreq":0}}
