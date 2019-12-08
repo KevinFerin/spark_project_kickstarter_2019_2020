@@ -1,0 +1,1 @@
+{"class":"org.apache.spark.ml.feature.CountVectorizerModel","timestamp":1572346117455,"sparkVersion":"2.4.4","uid":"cntVec_a7599f2e77f9","paramMap":{"minDF":2.0,"inputCol":"tokensWOstopwords","outputCol":"countedWord"},"defaultParamMap":{"maxDF":9.223372036854776E18,"vocabSize":262144,"binary":false,"minDF":1.0,"minTF":1.0,"outputCol":"cntVec_a7599f2e77f9__output"}}

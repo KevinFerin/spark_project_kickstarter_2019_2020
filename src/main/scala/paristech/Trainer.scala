@@ -1,12 +1,12 @@
 package paristech
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{SparkSession, DataFrame}
-import org.apache.spark.ml.feature.{IDF, Tokenizer, RegexTokenizer, StopWordsRemover, CountVectorizer, StringIndexer, OneHotEncoder, VectorAssembler,CountVectorizerModel}
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.ml.feature.{CountVectorizer, CountVectorizerModel, IDF, OneHotEncoder, OneHotEncoderEstimator, RegexTokenizer, StopWordsRemover, StringIndexer, Tokenizer, VectorAssembler}
 import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
-import org.apache.spark.ml.tuning.{ParamGridBuilder, TrainValidationSplit,TrainValidationSplitModel, CrossValidator}
+import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder, TrainValidationSplit, TrainValidationSplitModel}
 object Trainer {
 
   def main(args: Array[String]): Unit = {
@@ -71,10 +71,12 @@ object Trainer {
     val indexerCountry = new StringIndexer()
       .setInputCol("country2")
       .setOutputCol("country_indexed")
+      .setHandleInvalid("keep")
 
     val indexerCurrency = new StringIndexer()
       .setInputCol("currency2")
       .setOutputCol("currency_indexed")
+      .setHandleInvalid("keep")
 
     val onehotencoderCountry = new OneHotEncoder()
       .setInputCol("country_indexed")
@@ -100,25 +102,28 @@ object Trainer {
       .setTol(1.0e-6)
       .setMaxIter(20)
 
-    val splits = df.randomSplit(Array(0.9, 0.1))
-    val training = splits(0).cache()
+    val splits = df.randomSplit(Array(0.9, 0.1),42)
+
+    val training = splits(0)
     val test = splits(1)
 
     val pipeline = new Pipeline()
       .setStages(Array(tokenizer, stopWordsRemover,cvModel,idf, indexerCountry,indexerCurrency,
         onehotencoderCountry, onehotencoderCurrency, assembler, lr))
 
-    val model = pipeline.fit(training)
+    //val model = pipeline.fit(training)
 
-    model.write.overwrite().save("spark-logistic-regression-model")
+    //model.write.overwrite().save("spark-logistic-regression-model")
 
     val sameModel = PipelineModel.load("spark-logistic-regression-model")
 
     val predic = sameModel.transform(test)
+
     val evaluator = new MulticlassClassificationEvaluator()
       .setLabelCol("final_status")
       .setPredictionCol("predictions")
       .setMetricName("f1")
+
     val result = evaluator.evaluate(predic)
 
     println("\n")
@@ -127,8 +132,9 @@ object Trainer {
 
 
     val paramGrid = new ParamGridBuilder()
-      .addGrid(cvModel.minDF, Array(55.0,75.0,95.0))
+      .addGrid(cvModel.minDF, Array(35.0,55.0,75.0,95.0))
       .addGrid(lr.regParam, Array(10e-8, 10e-6, 10e-4, 10e-2))
+      .addGrid(lr.maxIter, Array(10,20,30))
       .build()
 
     val lrtv = new TrainValidationSplit()
@@ -136,9 +142,9 @@ object Trainer {
       .setEstimatorParamMaps(paramGrid)
       .setEvaluator(evaluator)
 
-    val modelGridTV = lrtv.fit(training)
+    //val modelGridTV = lrtv.fit(training)
 
-    modelGridTV.write.overwrite().save("spark-logistic-regression-model-gridSearchedTV")
+    //modelGridTV.write.overwrite().save("spark-logistic-regression-model-gridSearchedTV")
 
     val sameModelGridTV = TrainValidationSplitModel.load("spark-logistic-regression-model-gridSearchedTV")
 
@@ -160,7 +166,7 @@ object Trainer {
 
     modelGridCV.write.overwrite().save("spark-logistic-regression-model-gridSearchedCV")
 
-    val sameModelGridCV = TrainValidationSplitModel.load("spark-logistic-regression-model-gridSearchedCV")
+    val sameModelGridCV = CrossValidatorModel.load("spark-logistic-regression-model-gridSearchedCV")
 
     val predicGridCV = sameModelGridCV.transform(test)
 
@@ -169,5 +175,7 @@ object Trainer {
     println("\n")
     println("Le f1 score de ce model après gridSearch avec cross validator est : " + resultGridCV)
     println("\n")
+
+
   }
 }

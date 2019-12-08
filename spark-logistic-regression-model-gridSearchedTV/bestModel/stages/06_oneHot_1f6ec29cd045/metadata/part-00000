@@ -1,1 +1,0 @@
-{"class":"org.apache.spark.ml.feature.OneHotEncoder","timestamp":1572270888308,"sparkVersion":"2.4.4","uid":"oneHot_1f6ec29cd045","paramMap":{"outputCol":"country_onehot","inputCol":"country_indexed"},"defaultParamMap":{"outputCol":"oneHot_1f6ec29cd045__output","dropLast":true}}
